@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Scan source code locally for security issues and common bugs with Scripy."
+    />
+    <meta name="theme-color" content="#fff4d6" />
+    <title>Scripy — Code Scanner</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="page-wrap">
+      <header class="masthead">
+        <div class="brand-cluster">
+          <button
+            id="avatar-button"
+            class="avatar-button"
+            type="button"
+            aria-label="Make the Scripy avatar react"
+            title="Click for an avatar reaction"
+          >
+            <svg class="avatar-art" viewBox="0 0 72 84" aria-hidden="true">
+              <ellipse class="avatar-ground" cx="36" cy="79" rx="22" ry="3" />
+              <g class="avatar-body">
+                <path class="avatar-limb" d="M22 51h12v19H22zM39 51h12v19H39z" />
+                <path class="avatar-shoe" d="M19 68h16v8H18v-5zM38 68h16v3l-2 5H38z" />
+                <path class="avatar-limb" d="M13 35h9v23h-9zM50 35h9v23h-9z" />
+                <path class="avatar-hand" d="M13 55h9v7h-9zM50 55h9v7h-9z" />
+                <path class="avatar-shirt" d="M24 33h24l5 8-4 17H23l-4-17z" />
+                <path class="avatar-shirt-detail" d="m31 38 5 5 5-5-2 13h-6z" />
+                <path class="avatar-neck" d="M32 29h8v8h-8z" />
+              </g>
+              <g class="avatar-head">
+                <path class="avatar-skin" d="M22 12q0-4 5-4h18q5 0 5 5v18q0 5-5 5H27q-5 0-5-5z" />
+                <path class="avatar-hair" d="M21 17q-2-9 7-12l3 3q4-6 10-2l3-2q8 3 8 12l-5-3-3 3-4-4-5 4-5-3-4 4z" />
+                <path class="avatar-brow" d="M27 21h5M40 21h5" />
+                <circle class="avatar-eye" cx="30" cy="25" r="1.8" />
+                <circle class="avatar-eye" cx="42" cy="25" r="1.8" />
+                <path class="avatar-smile" d="M31 30q5 5 10 0" />
+                <path class="avatar-headband" d="M23 15q12 4 26-1" />
+              </g>
+              <path class="avatar-badge" d="m46 43 2 4 4 1-4 2-1 4-2-4-4-1 4-2z" />
+            </svg>
+          </button>
+          <span id="avatar-message" class="avatar-message" role="status" aria-live="polite" hidden></span>
+          <a class="brand" href="/" aria-label="Scripy home">SCRIPY</a>
+        </div>
+        <div class="masthead-note">LOCAL CODE SCANNER <span aria-hidden="true">✦</span> NO CLOUD UPLOADS</div>
+      </header>
+
+      <main>
+        <section class="intro comic-card" aria-labelledby="page-title">
+          <div class="intro-copy">
+            <p class="eyebrow">YOUR CODE'S FRIENDLY BUG HUNTER</p>
+            <h1 id="page-title">Catch bugs before they escape!</h1>
+            <p class="intro-text">
+              Scan a snippet or a whole project for security risks and common code flaws.
+              Python is checked with its AST; other supported files use local security and quality rules.
+            </p>
+          </div>
+          <div class="hero-burst" aria-hidden="true"><span>SCAN!</span></div>
+          <div id="engine-status" class="engine-status" role="status" aria-live="polite">
+            Checking local scanner…
+          </div>
+        </section>
+
+        <div class="workbench">
+          <section class="comic-card editor-card" aria-labelledby="editor-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">PANEL 01</p>
+                <h2 id="editor-title">Choose your code</h2>
+              </div>
+              <span class="sticker sticker-yellow">SOURCE IN</span>
+            </div>
+
+            <div class="editor-toolbar">
+              <label class="language-picker" for="language-select">
+                <span>Snippet language</span>
+                <select id="language-select">
+                  <option value="javascript">JavaScript</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="csharp">C#</option>
+                  <option value="go">Go</option>
+                  <option value="php">PHP</option>
+                  <option value="ruby">Ruby</option>
+                  <option value="rust">Rust</option>
+                  <option value="kotlin">Kotlin</option>
+                  <option value="swift">Swift</option>
+                  <option value="scala">Scala</option>
+                  <option value="bash">Bash</option>
+                  <option value="html">HTML</option>
+                  <option value="yaml">YAML</option>
+                  <option value="json">JSON</option>
+                  <option value="toml">TOML</option>
+                  <option value="sql">SQL</option>
+                </select>
+              </label>
+              <div class="upload-actions">
+                <button id="sample-btn" class="button button-light file-button" type="button">Load sample</button>
+                <label class="button button-light file-button">
+                  <input id="file-input" type="file" accept=".py,.js,.jsx,.mjs,.cjs,.ts,.tsx,.java,.c,.h,.cc,.cpp,.hpp,.cs,.go,.php,.rb,.rs,.kt,.kts,.swift,.scala,.html,.htm,.vue,.sh,.sql,.yaml,.yml,.json,.toml" />
+                  <span>Upload file</span>
+                </label>
+                <label class="button button-light file-button">
+                  <input id="folder-input" type="file" webkitdirectory multiple />
+                  <span>Choose project folder</span>
+                </label>
+              </div>
+            </div>
+
+            <textarea
+              id="code-input"
+              spellcheck="false"
+              aria-label="Source code"
+              placeholder="Paste a code snippet here, or choose a project folder above…"
+            ></textarea>
+            <div class="source-footer">
+              <span id="selection-label">Snippet mode · JavaScript</span>
+              <span id="file-count">0 files selected</span>
+              <span id="source-metrics">Line 1 · 0 characters</span>
+            </div>
+
+            <div class="scan-actions">
+              <button id="scan-btn" class="button button-primary" type="button" disabled>
+                <span aria-hidden="true">✦</span> Scan code
+              </button>
+              <button id="clear-btn" class="button button-light" type="button">Clear</button>
+              <span class="privacy-note">Scans run locally on this computer.</span>
+              <span class="shortcut-note"><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to scan</span>
+            </div>
+            <p id="input-message" class="inline-message" role="status" aria-live="polite"></p>
+          </section>
+
+          <section class="comic-card results-card" aria-labelledby="results-title">
+            <div class="section-heading results-heading">
+              <div>
+                <p class="eyebrow">PANEL 02</p>
+                <h2 id="results-title">Findings</h2>
+              </div>
+              <div class="export-actions">
+                <button id="json-btn" class="button button-light" type="button" disabled>JSON</button>
+                <button id="sarif-btn" class="button button-light" type="button" disabled>SARIF</button>
+                <button id="copy-btn" class="button button-light" type="button" disabled>Copy</button>
+              </div>
+            </div>
+
+            <div class="summary-grid" aria-live="polite">
+              <div class="summary-cell"><strong id="issue-count">0</strong><span>Findings</span></div>
+              <button class="summary-cell summary-critical summary-filter" type="button" data-severity="CRITICAL" aria-label="Filter critical findings" aria-pressed="false" title="Show critical findings" disabled>
+                <strong id="critical-count">0</strong><span>Critical</span>
+              </button>
+              <button class="summary-cell summary-high summary-filter" type="button" data-severity="HIGH" aria-label="Filter high severity findings" aria-pressed="false" title="Show high severity findings" disabled>
+                <strong id="high-count">0</strong><span>High</span>
+              </button>
+              <div class="summary-cell summary-files"><strong id="scanned-count">—</strong><span>Files scanned</span></div>
+            </div>
+
+            <div class="filter-row">
+              <label for="severity-filter">Severity
+                <select id="severity-filter">
+                  <option value="ALL">All levels</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                </select>
+              </label>
+              <label class="search-label" for="search-input">Search
+                <input id="search-input" type="search" placeholder="Rule, file, message…" />
+              </label>
+            </div>
+
+            <div class="result-meta">
+              <span id="scan-status" role="status" aria-live="polite">Ready when you are</span>
+              <span id="duration-label"></span>
+            </div>
+            <div id="scan-activity" class="scan-activity" hidden>
+              <div class="activity-copy">
+                <span class="scan-pulse" aria-hidden="true"></span>
+                <div>
+                  <strong>Scanner on patrol</strong>
+                  <span id="scan-activity-label">Checking source files locally…</span>
+                </div>
+                <span id="scan-elapsed" class="scan-elapsed">00:00</span>
+              </div>
+              <div
+                class="scan-meter"
+                role="progressbar"
+                aria-label="Local code scan in progress"
+                aria-valuetext="Scanning; no percentage estimate"
+              >
+                <span></span>
+              </div>
+            </div>
+            <div id="results-list" class="results-list" aria-live="polite">
+              <div class="empty-state">
+                <span class="empty-icon" aria-hidden="true">?</span>
+                <strong>No scan yet</strong>
+                <p>Choose code and hit Scan code to start.</p>
+              </div>
+            </div>
+            <p class="disclaimer">
+              Findings are useful leads, not proof. Review each result in context; scanners can miss issues or flag safe code.
+            </p>
+          </section>
+        </div>
+
+        <section class="comic-card history-card" aria-labelledby="history-title">
+          <div class="history-copy">
+            <p class="eyebrow">YOUR RECENT CASE FILES</p>
+            <h2 id="history-title">Scan history</h2>
+            <p>Only scan summaries are saved in this browser. Source code is not stored.</p>
+          </div>
+          <div class="history-actions">
+            <label class="visually-hidden" for="history-select">Previous scans</label>
+            <select id="history-select">
+              <option value="">No saved scans</option>
+            </select>
+            <button id="clear-history-btn" class="button button-light" type="button">Clear history</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="page-footer">
+        <span>SCRIPY <span aria-hidden="true">✦</span> OPEN SOURCE RULES · LOCAL-FIRST SCANNING</span>
+        <span>SECURITY IS A SUPERPOWER. USE IT WISELY.</span>
+      </footer>
+      <div class="workspace-signature">r9sys Workspace</div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
