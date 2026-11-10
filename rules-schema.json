@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scripy Custom Rule",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": { "type": "string" },
+      "languages": { "type": "array", "items": { "type": "string" } },
+      "severity": { "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+      "confidence": { "enum": ["HIGH", "MEDIUM", "LOW"] },
+      "category": { "type": "string" },
+      "pattern": { "type": "string" },
+      "message": { "type": "string" },
+      "fix": { "type": "string" },
+      "cwe": { "type": "string" }
+    },
+    "required": ["id", "languages", "severity", "confidence", "category", "pattern", "message", "fix"]
+  }
+}

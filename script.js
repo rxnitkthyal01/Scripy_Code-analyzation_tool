@@ -25,6 +25,7 @@ const highCount = document.getElementById("high-count");
 const scannedCount = document.getElementById("scanned-count");
 const jsonButton = document.getElementById("json-btn");
 const sarifButton = document.getElementById("sarif-btn");
+const sbomButton = document.getElementById("sbom-btn");
 const copyButton = document.getElementById("copy-btn");
 const historySelect = document.getElementById("history-select");
 const clearHistoryButton = document.getElementById("clear-history-btn");
@@ -212,6 +213,7 @@ function setReport(report) {
   const canExport = Boolean(report);
   jsonButton.disabled = !canExport;
   sarifButton.disabled = !canExport;
+  sbomButton.disabled = !canExport;
   copyButton.disabled = !canExport;
   updateSummaryFilters();
   renderFindings();
@@ -476,6 +478,27 @@ function downloadSarif() {
   downloadFile("scripy-scan-report.sarif", JSON.stringify(sarif, null, 2), "application/sarif+json");
 }
 
+function downloadSbom() {
+  if (!currentReport) return;
+  const sbom = {
+    bomFormat: "CycloneDX",
+    specVersion: "1.5",
+    serialNumber: `urn:uuid:${crypto.randomUUID()}`,
+    version: 1,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      tools: [{ vendor: "Scripy", name: "Local Code Scanner", version: currentReport.scannerVersion }]
+    },
+    components: Array.from(new Set(currentReport.findings.map(f => f.file))).map(file => ({
+      type: "library",
+      name: file,
+      publisher: "internal",
+      scope: "required"
+    }))
+  };
+  downloadFile("scripy-sbom.json", JSON.stringify(sbom, null, 2), "application/vnd.cyclonedx+json");
+}
+
 async function copyReport() {
   if (!currentReport) return;
   try {
@@ -736,6 +759,7 @@ for (const button of summaryFilters) {
 searchInput.addEventListener("input", renderFindings);
 jsonButton.addEventListener("click", downloadJson);
 sarifButton.addEventListener("click", downloadSarif);
+sbomButton.addEventListener("click", downloadSbom);
 copyButton.addEventListener("click", copyReport);
 historySelect.addEventListener("change", openHistory);
 clearHistoryButton.addEventListener("click", () => {

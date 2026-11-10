@@ -95,7 +95,7 @@ SOURCE_RULES = [
         "HIGH",
         "MEDIUM",
         "security",
-        r"\b(?:innerHTML|outerHTML)\s*=\s*[^;\n]*(?:req(?:uest)?\.|location|searchParams|user(?:Input|Data)?|untrusted|params)|document\.write\s*\(\s*(?:req(?:uest)?\.|location|user(?:Input|Data)?|untrusted|params)|dangerouslySetInnerHTML",
+        r"\b(?:innerHTML|outerHTML)\s*=\s*[^;\n]{0,512}(?:req(?:uest)?\.|location|searchParams|user(?:Input|Data)?|untrusted|params)|document\.write\s*\(\s*(?:req(?:uest)?\.|location|user(?:Input|Data)?|untrusted|params)|dangerouslySetInnerHTML",
         "Writing a value to an HTML injection sink can create cross-site scripting.",
         "Prefer textContent or sanitize untrusted HTML with a vetted sanitizer.",
         "CWE-79",
@@ -131,6 +131,28 @@ SOURCE_RULES = [
         r"(?i)\b(?:password|passwd|secret|token|api[_-]?key|client[_-]?secret)\b\s*(?::|=)\s*[\"'][^\"'\r\n]{8,}[\"']",
         "A credential-like key contains a long literal value.",
         "Load credentials from environment or a dedicated secret manager.",
+        "CWE-798",
+    ),
+    rule(
+        "scripy.aws-access-key",
+        {"javascript", "typescript", "python", "java", "go", "yaml", "json"},
+        "CRITICAL",
+        "HIGH",
+        "security",
+        r"(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
+        "A hardcoded AWS access key ID was detected.",
+        "Remove the access key and use IAM roles or environment variables.",
+        "CWE-798",
+    ),
+    rule(
+        "scripy.gcp-api-key",
+        {"javascript", "typescript", "python", "java", "go", "yaml", "json"},
+        "CRITICAL",
+        "HIGH",
+        "security",
+        r"AIza[0-9A-Za-z\\-_]{35}",
+        "A hardcoded Google Cloud API key was detected.",
+        "Remove the API key and use service accounts or secrets manager.",
         "CWE-798",
     ),
     rule(
@@ -207,6 +229,116 @@ SOURCE_RULES = [
         r"\b(?:debug\s*=\s*True|app\.debug\s*=\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*[\"']0[\"'])",
         "Debug mode or a TLS verification bypass is enabled in code.",
         "Disable debug features and TLS bypasses in production.",
+    ),
+    rule(
+        "scripy.ai-insecure-default",
+        {"javascript", "typescript", "python"},
+        "HIGH",
+        "MEDIUM",
+        "security",
+        r"\b(?:cors\s*\(\s*\)|app\.use\s*\(\s*cors\s*\(\s*\)\s*\)|Access-Control-Allow-Origin\s*[:=]\s*[\"']\*[\"'])",
+        "AI-generated or default configuration permits wildcard CORS access.",
+        "Restrict CORS origins to trusted domains.",
+        "CWE-942",
+    ),
+    rule(
+        "scripy.obfuscated-payload",
+        {"javascript", "typescript", "python"},
+        "HIGH",
+        "LOW",
+        "security",
+        r"\b(?:atob\s*\(|Buffer\.from\s*\([^)]+,\s*['\"]base64['\"]|base64\.b64decode\s*\()",
+        "Decoding obfuscated base64 payload at runtime can hide malicious code execution.",
+        "Avoid runtime decoding of dynamic strings; keep code transparent and auditable.",
+        "CWE-506",
+    ),
+    rule(
+        "scripy.weak-crypto-future",
+        {"javascript", "typescript", "python", "java", "go", "csharp"},
+        "MEDIUM",
+        "MEDIUM",
+        "security",
+        r"\b(?:RSA\s*\(\s*1024|crypto\.createCipher\s*\(|DES\b|3DES\b|RC4\b)",
+        "Use of legacy or weak cryptographic algorithms vulnerable to future cryptanalysis.",
+        "Upgrade to quantum-resilient or modern cryptographic algorithms (AES-GCM, RSA-2048+, Ed25519).",
+        "CWE-327",
+    ),
+    rule(
+        "scripy.k8s-privileged-container",
+        {"yaml"},
+        "CRITICAL",
+        "HIGH",
+        "security",
+        r"privileged\s*:\s*true",
+        "Container is running in privileged mode, allowing potential host takeover.",
+        "Remove privileged: true and use specific Linux capabilities instead.",
+        "CWE-250",
+    ),
+    rule(
+        "scripy.k8s-root-user",
+        {"yaml"},
+        "HIGH",
+        "MEDIUM",
+        "security",
+        r"runAsUser\s*:\s*0",
+        "Container is configured to run as root user.",
+        "Set runAsUser to a non-zero value and ensure runAsNonRoot is true.",
+        "CWE-250",
+    ),
+    rule(
+        "scripy.iac-public-access",
+        {"yaml", "json", "toml"},
+        "HIGH",
+        "MEDIUM",
+        "security",
+        r"(?:0\.0\.0\.0/0|::/0|\bany\b)",
+        "Resource allows public access from the entire internet.",
+        "Restrict access to known IP ranges or specific VPC/Network segments.",
+        "CWE-200",
+    ),
+    rule(
+        "scripy.privacy-pii-handling",
+        {"javascript", "typescript", "python", "java", "csharp", "json"},
+        "LOW",
+        "LOW",
+        "privacy",
+        r"(?i)\b(?:ssn|socialSecurity|birthDate|dob|creditCard|phoneNumber)\b",
+        "Potentially sensitive PII (Personally Identifiable Information) detected.",
+        "Ensure data is encrypted at rest and handled according to GDPR/CCPA regulations.",
+        "CWE-359",
+    ),
+    rule(
+        "scripy.side-channel-timing",
+        {"javascript", "typescript", "python"},
+        "MEDIUM",
+        "LOW",
+        "security",
+        r"(?i)\b(?:password|secret|token|key)\b[^\n;]{0,40}(?:==|===|!=|!==)",
+        "Direct comparison of security-sensitive values may be vulnerable to timing attacks.",
+        "Use a constant-time comparison function (e.g., crypto.timingSafeEqual).",
+        "CWE-208",
+    ),
+    rule(
+        "scripy.supply-chain-wildcard-dep",
+        {"json"},
+        "MEDIUM",
+        "HIGH",
+        "security",
+        r"\"[^\"]+\"\s*:\s*\"(?:\*|>=0\.0\.0|>0\.0\.0|latest)\"",
+        "Wildcard or 'latest' dependency versions can automatically pull breaking or malicious updates.",
+        "Pin dependencies to precise or safe semver ranges.",
+        "CWE-1104",
+    ),
+    rule(
+        "scripy.supply-chain-suspicious-registry",
+        {"json", "yaml", "toml"},
+        "HIGH",
+        "MEDIUM",
+        "security",
+        r"https?://(?!registry\.npmjs\.org|registry\.yarnpkg\.com|pypi\.org|files\.pythonhosted\.org)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/",
+        "Dependency or package config uses a non-standard custom registry URL.",
+        "Verify that the custom registry is trusted and intentionally configured.",
+        "CWE-829",
     ),
 ]
 
@@ -550,6 +682,26 @@ class PythonRuleVisitor(ast.NodeVisitor):
             )
         self.generic_visit(node)
 
+    def visit_FunctionDef(self, node):
+        # Track function definitions and their parameters for cross-function analysis
+        self.sql_assignments = []  # Reset per function scope
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        name = call_name(node.func)
+        short_name = name.rsplit(".", 1)[-1]
+        if short_name in {"eval", "exec"}:
+            self.add(
+                "scripy.dynamic-code",
+                "CRITICAL",
+                "HIGH",
+                "security",
+                node,
+                "Dynamic code execution can run attacker-controlled input.",
+                "Replace dynamic execution with explicit, allowlisted logic.",
+                "CWE-95",
+            )
+
 def scan_python(source, file_name):
     try:
         tree = ast.parse(source, filename=file_name)
@@ -565,35 +717,45 @@ def scan_python(source, file_name):
 
 
 def mask_non_code(line):
+    # Use mutually exclusive alternatives per quote type to avoid catastrophic
+    # backtracking (ReDoS) on unterminated or heavily escaped string literals.
     return re.sub(
-        r"/\*.*?\*/|//[^\r\n]*|(['\"`])(?:\\.|(?!\1)[\s\S])*?\1",
+        r"/\*.*?\*/|//[^\r\n]*|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`",
         lambda match: " " * len(match.group()),
         line,
     )
 
 
-def scan_source_file(source, file_name, language):
+def scan_source_file(source, file_name, language, rules=None):
     if language == "python":
+        # Python uses AST visitor, but we can also apply source rules if needed
+        # For now, scan_python uses its own visitor. We could pass rules to visitor or keep it as is.
         return scan_python(source, file_name)
 
     results = []
     seen = set()
     lines = source.splitlines()
+    target_rules = rules if rules is not None else SOURCE_RULES
     for line_number, line in enumerate(lines, start=1):
         code = mask_non_code(line)
-        for item in SOURCE_RULES:
+        for item in target_rules:
             if language not in item["languages"]:
                 continue
             candidate = code
-            matched = item["pattern"].search(line)
-            if item["id"] in {
-                "scripy.dynamic-code",
-                "scripy.dom-xss",
-                "scripy.unsafe-buffer-function",
-                "scripy.javascript-loose-equality",
-            }:
-                matched = item["pattern"].search(candidate)
-            elif item["id"] == "scripy.sql-dynamic-query":
+            # Use candidate (masked code) for logic-based rules to avoid matching inside strings/comments.
+            # Use raw line for data-based rules (like secrets or IaC configurations).
+            is_data_rule = item["category"] in {"privacy"} or item["id"] in {
+                "scripy.hardcoded-secret",
+                "scripy.iac-public-access",
+                "scripy.k8s-privileged-container",
+                "scripy.k8s-root-user",
+                "scripy.supply-chain-wildcard-dep",
+                "scripy.supply-chain-suspicious-registry"
+            }
+            search_text = line if is_data_rule else candidate
+            matched = item["pattern"].search(search_text)
+
+            if item["id"] == "scripy.sql-dynamic-query":
                 has_dynamic_code = re.search(
                     r"\+\s*(?:[A-Za-z_$][\w$.]*|\$\{)|"
                     r"\$\{[^}]+\}|"
@@ -601,7 +763,7 @@ def scan_source_file(source, file_name, language):
                     r"\bString\.format\s*\(|"
                     r"\.format(?:_map)?\s*\(|"
                     r"%(?:s|d|i|f|v)\s*%\s*[A-Za-z_$]",
-                    line,
+                    search_text,
                 )
                 matched = bool(matched and has_dynamic_code)
             if matched:
@@ -626,10 +788,73 @@ def scan_source_file(source, file_name, language):
     return results, []
 
 
-def scan_directory(root):
+def load_config(root):
+    config_path = Path(root) / ".scripy.json"
+    if not config_path.is_file():
+        return {}
+    try:
+        return json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def apply_overrides(rules, config):
+    if not config or "overrides" not in config:
+        return rules
+    overrides = config["overrides"]
+    new_rules = []
+    for r in rules:
+        rule_id = r["id"]
+        if rule_id in overrides:
+            override = overrides[rule_id]
+            if override.get("enabled") is False:
+                continue
+            r = r.copy()
+            if "severity" in override:
+                r["severity"] = override["severity"]
+            if "confidence" in override:
+                r["confidence"] = override["confidence"]
+        new_rules.append(r)
+    return new_rules
+
+
+def load_custom_rules(rule_dir):
+    if not rule_dir:
+        return
+    rule_path = Path(rule_dir)
+    if not rule_path.is_dir():
+        return
+    for json_file in rule_path.glob("*.json"):
+        try:
+            data = json.loads(json_file.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                for item in data:
+                    if all(k in item for k in ("id", "languages", "severity", "confidence", "category", "pattern", "message", "fix")):
+                        SOURCE_RULES.append(
+                            rule(
+                                item["id"],
+                                item["languages"],
+                                item["severity"],
+                                item["confidence"],
+                                item["category"],
+                                item["pattern"],
+                                item["message"],
+                                item["fix"],
+                                item.get("cwe", "")
+                            )
+                        )
+        except Exception:
+            pass
+
+
+def scan_directory(root, rule_dir=None):
     root = Path(root).resolve()
     if not root.is_dir():
         raise ValueError("The scan root is not a directory.")
+
+    config = load_config(root)
+    active_rules = apply_overrides(SOURCE_RULES, config)
+    load_custom_rules(rule_dir)
 
     results = []
     warnings = []
@@ -640,7 +865,7 @@ def scan_directory(root):
         relative = file_path.relative_to(root).as_posix()
         source = file_path.read_text(encoding="utf-8", errors="replace")
         language = SUPPORTED_EXTENSIONS[file_path.suffix.lower()]
-        findings, file_warnings = scan_source_file(source, relative, language)
+        findings, file_warnings = scan_source_file(source, relative, language, active_rules)
         results.extend(findings)
         warnings.extend(file_warnings)
         scanned_files += 1
@@ -668,6 +893,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run Scripy's local source scanner.")
     parser.add_argument("--health", action="store_true", help="Report scanner runtime health.")
     parser.add_argument("--root", help="Directory containing source files to scan.")
+    parser.add_argument("--rule-dir", help="Directory containing custom user rules.")
     args = parser.parse_args()
 
     if sys.version_info < (3, 15):
@@ -694,7 +920,7 @@ def main():
     if not args.root:
         parser.error("--root is required unless --health is specified.")
     try:
-        print(json.dumps(scan_directory(args.root), ensure_ascii=False))
+        print(json.dumps(scan_directory(args.root, args.rule_dir), ensure_ascii=False))
         return 0
     except (OSError, ValueError) as error:
         print(json.dumps({"error": str(error)}), file=sys.stderr)

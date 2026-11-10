@@ -15,8 +15,16 @@ const PYTHON_PREFIX_ARGS = process.env.PYTHON_315_EXECUTABLE
 const MAX_BODY_BYTES = 32 * 1024 * 1024;
 const MAX_FILES = 500;
 const MAX_FILE_BYTES = 1024 * 1024;
+const MAX_TOTAL_SOURCE_BYTES = 5 * 1024 * 1024;
 const MAX_PATH_BYTES = 1024;
 const MAX_SCAN_MS = 120_000;
+const MAX_CPU_USAGE = 0.8;
+const MAX_MEMORY_MB = 512;
+const SAFE_ENV_KEYS = [
+  "PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "LANG", "LC_ALL",
+  "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "COMSPEC", "PATHEXT",
+  "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE", "SCRIPY_CUSTOM_RULES"
+];
 const SUPPORTED_EXTENSIONS = new Set([
   ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".java", ".c", ".h",
   ".cc", ".cpp", ".hpp", ".cs", ".go", ".php", ".rb", ".rs", ".kt", ".kts",
@@ -24,11 +32,33 @@ const SUPPORTED_EXTENSIONS = new Set([
   ".json", ".toml"
 ]);
 
-const MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8"
-};
+function buildSafeEnv() {
+  const safeEnv = {};
+  for (const key of SAFE_ENV_KEYS) {
+    if (process.env[key] !== undefined) {
+      safeEnv[key] = process.env[key];
+    }
+  }
+  if (process.env.PYTHON_315_EXECUTABLE) {
+    safeEnv.PYTHON_315_EXECUTABLE = process.env.PYTHON_315_EXECUTABLE;
+  }
+  return safeEnv;
+}
+
+const rateLimitMap = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip) || { count: 0, windowStart: now };
+  if (now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
+    record.count = 1;
+    record.windowStart = now;
+  } else {
+    record.count += 1;
+  }
+  rateLimitMap.set(ip, record);
+  return record.count <= RATE_LIMIT_MAX_REQUESTS;
+}
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -111,7 +141,7 @@ function validateFiles(payload) {
       throw Object.assign(new Error(`${relativePath} exceeds the 1 MB per-file limit.`), { status: 413 });
     }
     totalBytes += bytes;
-    if (totalBytes > MAX_BODY_BYTES) {
+    if (totalBytes > MAX_TOTAL_SOURCE_BYTES) {
       throw Object.assign(new Error("The selected source exceeds the 5 MB total scan limit."), { status: 413 });
     }
 
@@ -128,12 +158,19 @@ function runPythonScanner(scanDirectory, healthCheck = false) {
       args.push("--health");
     } else {
       args.push("--root", scanDirectory);
+      if (process.env.SCRIPY_CUSTOM_RULES) {
+        args.push("--rule-dir", process.env.SCRIPY_CUSTOM_RULES);
+      }
     }
     const child = spawn(PYTHON_COMMAND, args, {
       cwd: ROOT,
       windowsHide: true,
-      env: process.env,
-      shell: false
+      env: buildSafeEnv(),
+      shell: false,
+      resourceLimits: {
+        maxMemory: MAX_MEMORY_MB * 1024 * 1024,
+        maxCpu: MAX_CPU_USAGE
+      }
     });
     let stdout = "";
     let stderr = "";
@@ -217,7 +254,7 @@ async function scanFiles(files) {
       scannedFiles: files.length
     };
   } finally {
-    await fs.rm(scanDirectory, { recursive: true, force: true });
+    await fs.rm(scanDirectory, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -229,7 +266,9 @@ async function checkPythonScanner() {
       available: false,
       scannerVersion: "",
       pythonVersion: "",
-      message: error.message
+      message: error.message.includes("timeout") || error.message.includes("not found")
+        ? error.message
+        : "Scanner setup needed · Install Python 3.15 (see README)"
     };
   }
 }
@@ -276,6 +315,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/scan") {
+    const clientIp = request.socket.remoteAddress || "unknown";
+    if (!checkRateLimit(clientIp)) {
+      sendJson(response, 429, { error: "Too many scan requests. Please wait before scanning again." });
+      return;
+    }
     try {
       if (!request.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
         throw Object.assign(new Error("Scan requests must use application/json."), { status: 415 });
@@ -283,9 +327,11 @@ const server = http.createServer(async (request, response) => {
       const files = validateFiles(await readJson(request));
       sendJson(response, 200, await scanFiles(files));
     } catch (error) {
-      sendJson(response, error.status || 500, {
-        error: error.message || "The scan failed unexpectedly.",
-        code: error.code || "SCAN_FAILED"
+      const status = error.status || 500;
+      const isClientError = status < 500;
+      sendJson(response, status, {
+        error: isClientError ? (error.message || "Invalid request.") : "The scan failed unexpectedly. Check the server logs for details.",
+        code: error.code || (isClientError ? "INVALID_REQUEST" : "SCAN_FAILED")
       });
     }
     return;

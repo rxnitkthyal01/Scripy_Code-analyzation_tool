@@ -14,10 +14,16 @@ The bundled rules cover selected examples of:
 - Dynamically constructed SQL queries
 - Shell command execution and command-injection risks
 - Unsafe HTML insertion and related cross-site scripting risks
-- Hardcoded-looking credentials
+- Hardcoded-looking credentials and AWS/GCP cloud keys
+- AI-generated code insecure defaults (wildcard CORS)
+- Obfuscated base64 payload runtime decoding
+- Infrastructure-as-Code (IaC) and Kubernetes manifest risks (privileged containers, root runAsUser, wildcard IP access)
+- Privacy compliance & PII detection (SSN, credit card, DOB)
+- Side-channel timing attack patterns
+- Supply chain audit (wildcard/latest dependency pinning, suspicious registries)
 - Disabled TLS certificate verification
 - Unsafe deserialization
-- Weak random-number and hash functions
+- Weak random-number, hash, and legacy/future-threat cryptographic functions
 - Unsafe C and C++ buffer functions
 - Debug-mode configuration
 - Loose JavaScript equality
@@ -90,7 +96,7 @@ The app's status indicator checks whether the Python scanner is available.
 3. Select **Scan code** or press **Ctrl+Enter** (Windows/Linux) or **Command+Enter** (macOS).
 4. Review the findings, severity counts, locations, explanations, confidence, and suggested fixes.
 5. Filter by severity or search finding details.
-6. Export a JSON or SARIF 2.1.0 report, or copy the JSON report.
+6. Export a JSON, SARIF 2.1.0, or CycloneDX 1.5 SBOM report, or copy the JSON report.
 7. Reopen a recent scan summary from the browser's scan history.
 
 The editor and scan feedback report the current source metrics and elapsed scan time. The scan indicator does not estimate a percentage. A report with no matches only means that the bundled rules did not identify a pattern; it does not prove that the code is secure.
@@ -109,9 +115,36 @@ The local server writes submitted source to a temporary directory while scanning
 
 ## Change or add scanner rules
 
-Python AST checks and non-Python source-pattern rules are in `scanner.py`. The scanner API and local server are implemented in `server.js`. The browser interface is in `index.html`, `style.css`, and `script.js`. Regression tests are in `server.test.js`.
+Python AST checks and non-Python source-pattern rules are in `scanner.py`. The scanner API and local server are implemented in `server.js`.
 
-Non-Python rules use source patterns and may match comments or strings. Test rule changes against both positive examples and similar safe code to check for missed cases and false positives.
+### Custom User Rules
+
+You can add your own rules by placing JSON files in a directory and passing that directory to the scanner using the `--rule-dir` argument:
+
+```powershell
+python3 scanner.py --root /path/to/project --rule-dir /path/to/my-rules/
+```
+
+Rules are defined as a JSON array in each file. Each object must conform to the following schema:
+
+```json
+[
+  {
+    "id": "my-rule-id",
+    "languages": ["javascript", "typescript"],
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "security",
+    "pattern": "\\b(?:some_vulnerable_pattern)\\b",
+    "message": "Description of the vulnerability.",
+    "fix": "How to fix the vulnerability.",
+    "cwe": "CWE-123"
+  }
+]
+```
+
+See `rules-schema.json` in the project root for the full validation schema.
+
 
 ## Run tests
 

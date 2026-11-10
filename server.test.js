@@ -133,3 +133,95 @@ test("reports invalid Python syntax instead of returning a clean scan", async ()
   assert.equal(report.analysisWarnings.length, 1);
   assert.match(report.analysisWarnings[0], /AST analysis skipped/);
 });
+
+test("enforces 5 MB total source size limit", () => {
+  const hugeSource = "x".repeat(6 * 1024 * 1024);
+  assert.throws(
+    () => validateFiles({ files: [{ path: "huge.js", content: hugeSource }] }),
+    /5 MB total scan limit/
+  );
+});
+
+test("detects future-threat patterns in code", async () => {
+  const report = await scanFiles([
+    {
+      path: "threats.js",
+      content: [
+        'app.use(cors());', // scripy.ai-insecure-default
+        'atob("Y29kZSA9IG1hbGljaW91cw==");', // scripy.obfuscated-payload
+        'const key = crypto.createCipher("des", "password");' // scripy.weak-crypto-future
+      ].join("\n")
+    }
+  ]);
+  const ruleIds = new Set(report.findings.map((f) => f.ruleId));
+  assert.ok(ruleIds.has("scripy.ai-insecure-default"));
+  assert.ok(ruleIds.has("scripy.obfuscated-payload"));
+  assert.ok(ruleIds.has("scripy.weak-crypto-future"));
+});
+
+test("detects insecure infrastructure patterns", async () => {
+  const report = await scanFiles([
+    {
+      path: "deploy.yaml",
+      content: [
+        "securityContext:",
+        "  privileged: true",
+        "  runAsUser: 0"
+      ].join("\n")
+    },
+    {
+      path: "config.json",
+      content: '{"cidr": "0.0.0.0/0"}'
+    }
+  ]);
+  const ruleIds = new Set(report.findings.map((f) => f.ruleId));
+  assert.ok(ruleIds.has("scripy.k8s-privileged-container"));
+  assert.ok(ruleIds.has("scripy.k8s-root-user"));
+  assert.ok(ruleIds.has("scripy.iac-public-access"));
+});
+
+test("detects privacy and side-channel patterns", async () => {
+  const report = await scanFiles([
+    {
+      path: "privacy.json",
+      content: '{"user": {"dob": "1990-01-01", "ssn": "000-00-0000"}}'
+    },
+    {
+      path: "auth.js",
+      content: 'if (inputToken === internalSecretToken) { login(); }'
+    },
+    {
+      path: "keys.json",
+      content: '{"aws": "AKIAIOSFODNN7EXAMPLE", "gcp": "AIzaSyA1234567890abcdefghijklmnopqrstuvwxyz"}'
+    }
+  ]);
+  const ruleIds = new Set(report.findings.map((f) => f.ruleId));
+  assert.ok(ruleIds.has("scripy.privacy-pii-handling"));
+  assert.ok(ruleIds.has("scripy.side-channel-timing"));
+  assert.ok(ruleIds.has("scripy.aws-access-key"));
+  assert.ok(ruleIds.has("scripy.gcp-api-key"));
+});
+
+test("respects .scripy.json rule overrides", async () => {
+  const report = await scanFiles([
+    {
+      path: ".scripy.json",
+      content: JSON.stringify({
+        overrides: {
+          "scripy.dom-xss": { enabled: false },
+          "scripy.dynamic-code": { severity: "LOW" }
+        }
+      })
+    },
+    {
+      path: "test.js",
+      content: 'eval("alert(1)"); document.body.innerHTML = location.search;'
+    }
+  ]);
+  const domXss = report.findings.find(f => f.ruleId === "scripy.dom-xss");
+  const dynamicCode = report.findings.find(f => f.ruleId === "scripy.dynamic-code");
+
+  assert.equal(domXss, undefined, "scripy.dom-xss should be disabled");
+  assert.ok(dynamicCode, "scripy.dynamic-code should be present");
+  assert.equal(dynamicCode.severity, "LOW", "scripy.dynamic-code severity should be overridden to LOW");
+});
