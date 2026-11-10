@@ -53,6 +53,6 @@ Customize rule severity and status via a `.scripy.json` file in your project roo
 ---
 *By - r9sys workspace*
 
-## output ##
+## Awwsome ui ##
 <img width="1916" height="1075" alt="image" src="https://github.com/user-attachments/assets/301ea3ce-f933-4daf-bb17-ea03917e542b" />
 
